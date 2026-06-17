@@ -1,0 +1,45 @@
+name: Convert WebM to MOV (HEVC Alpha)
+
+on:
+  workflow_dispatch:
+    inputs:
+      webm_zip:
+        description: 'اسم ملف ZIP في آخر Release (مثال: webm_batch01.zip)'
+        required: true
+        type: string
+
+jobs:
+  convert:
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          brew install ffmpeg
+          ffmpeg -version | head -1
+
+      - name: Download and extract WebM files
+        run: |
+          gh release download --pattern "${{ github.event.inputs.webm_zip }}" --dir .
+          mkdir -p webm_3
+          unzip "${{ github.event.inputs.webm_zip }}" -d webm_3
+          echo "📂 ملفات WebM:"
+          ls webm_3/*.webm 2>/dev/null | wc -l
+          du -sh webm_3/
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Run conversion script
+        env:
+          PYTHONUNBUFFERED: "1"
+        run: python3 convert_mac.py
+
+      - name: Upload result as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mov_${{ github.event.inputs.webm_zip }}
+          path: mov_output/
+          retention-days: 7
